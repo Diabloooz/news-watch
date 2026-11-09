@@ -1,0 +1,33 @@
+name: news-watch
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes (GitHub may delay runs a few minutes under load)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check feeds and fire if needed
+        env:
+          WATCH_FEEDS: ${{ secrets.WATCH_FEEDS }}
+          WATCH_KEYWORDS: ${{ secrets.WATCH_KEYWORDS }}
+          FIRE_URL: ${{ secrets.FIRE_URL }}
+          FIRE_TOKEN: ${{ secrets.FIRE_TOKEN }}
+        run: python3 watch.py
+      - name: Save state
+        run: |
+          git config user.name "news-watch"
+          git config user.email "news-watch@users.noreply.github.com"
+          git add state/seen.json
+          git diff --cached --quiet || (git commit -m "state" -q && git push -q)
